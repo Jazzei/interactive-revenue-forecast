@@ -1,28 +1,25 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Revenue Calculator</title>
+    <title>Intäktskalkylator</title>
     <meta charset="UTF-8">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.2/Recharts.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { margin: 0; padding: 0; }
-        .container {
-            width: 100vw;
-            height: 100vh;
-            padding: 20px;
-            box-sizing: border-box;
-            font-family: 'Google Sans', Arial, sans-serif;
+        body { 
+            margin: 0; 
+            padding: 20px; 
+            font-family: Arial, sans-serif;
         }
         .controls {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 15px;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
             margin-bottom: 20px;
-            padding: 15px;
-            background-color: #f8f9fa;
+            padding: 20px;
+            background-color: #f5f5f5;
             border-radius: 8px;
         }
         .control-group {
@@ -30,115 +27,190 @@
             flex-direction: column;
             gap: 8px;
         }
-        .label {
-            font-size: 14px;
-            font-weight: 500;
-            color: #202124;
+        label {
+            font-weight: bold;
         }
         input {
             padding: 8px;
-            border: 1px solid #dadce0;
+            border: 1px solid #ddd;
             border-radius: 4px;
-            font-size: 14px;
         }
         .chart-container {
-            height: calc(100% - 280px);
-            min-height: 300px;
-        }
-        .metrics {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 15px;
-            margin-top: 20px;
-        }
-        .metric-card {
+            height: 400px;
+            margin-bottom: 30px;
+            padding: 20px;
             background-color: white;
-            padding: 15px;
             border-radius: 8px;
-            border: 1px solid #dadce0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        .metric-value {
-            font-size: 20px;
-            font-weight: 500;
-            color: #1a73e8;
+        .table-container {
+            overflow-x: auto;
+            margin-top: 30px;
         }
-        .metric-label {
-            font-size: 12px;
-            color: #5f6368;
-            margin-top: 4px;
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            padding: 12px;
+            border: 1px solid #ddd;
+            text-align: right;
+        }
+        th {
+            background-color: #f5f5f5;
+            text-align: center;
+        }
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .summary-card {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+        .summary-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2563eb;
+            margin-bottom: 8px;
+        }
+        .highlight {
+            background-color: #e6f3ff;
         }
     </style>
 </head>
 <body>
     <div id="root"></div>
-    <script type="text/babel" data-type="module">
-        const { useState, useEffect } = React;
-        const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } = Recharts;
-
+    <script type="text/babel">
         function RevenueCalculator() {
-            const [params, setParams] = useState({
+            const chartRef = React.useRef(null);
+            const [params, setParams] = React.useState({
                 targetUsers: 500,
                 premiumPrice: 3000,
                 premiumExtras: 1000,
                 plusPrice: 500,
-                initialPremiumUsers: 2,
-                premiumGrowthPerMonth: 2
+                premiumPercentYear1: 10,
+                premiumPercentYear2: 12,
+                plusPercentYear2: 30
             });
 
-            const [data, setData] = useState([]);
-
-            const calculateRevenue = () => {
-                const year1 = Array.from({ length: 12 }, (_, i) => {
+            const calculateData = () => {
+                const data = [];
+                // År 1
+                for (let i = 0; i < 12; i++) {
                     const users = Math.round(150 * ((i + 1) / 12));
                     const premiumUsers = i < 5 ? 0 : Math.min(
-                        params.initialPremiumUsers + (i - 5) * params.premiumGrowthPerMonth, 
-                        12
+                        Math.round(users * (params.premiumPercentYear1 / 100)), 
+                        Math.round(150 * (params.premiumPercentYear1 / 100))
                     );
                     const premiumRevenue = premiumUsers * (params.premiumPrice + params.premiumExtras);
                     
-                    return {
-                        month: `M${i + 1}`,
+                    data.push({
+                        month: i + 1,
                         users,
                         premiumUsers,
+                        plusUsers: 0,
                         premiumRevenue,
                         plusRevenue: 0,
                         totalRevenue: premiumRevenue
-                    };
-                });
-
-                const year2 = Array.from({ length: 12 }, (_, i) => {
+                    });
+                }
+                
+                // År 2
+                for (let i = 0; i < 12; i++) {
                     const users = Math.round(150 + ((params.targetUsers - 150) * (i + 1) / 12));
-                    const premiumUsers = Math.round(12 + ((params.targetUsers * 0.12 - 12) * (i + 1) / 12));
-                    const plusUsers = Math.round(users * 0.3);
+                    const premiumUsers = Math.round(users * (params.premiumPercentYear2 / 100));
+                    const plusUsers = Math.round(users * (params.plusPercentYear2 / 100));
                     const premiumRevenue = premiumUsers * (params.premiumPrice + params.premiumExtras);
                     const plusRevenue = plusUsers * params.plusPrice;
-
-                    return {
-                        month: `M${i + 13}`,
+                    
+                    data.push({
+                        month: i + 13,
                         users,
                         premiumUsers,
                         plusUsers,
                         premiumRevenue,
                         plusRevenue,
                         totalRevenue: premiumRevenue + plusRevenue
-                    };
-                });
-
-                setData([...year1, ...year2]);
+                    });
+                }
+                
+                return data;
             };
 
-            useEffect(() => {
-                calculateRevenue();
+            const updateChart = (data) => {
+                if (chartRef.current) {
+                    chartRef.current.destroy();
+                }
+
+                const ctx = document.getElementById('revenueChart').getContext('2d');
+                chartRef.current = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.map(d => `M${d.month}`),
+                        datasets: [
+                            {
+                                label: 'Total intäkt',
+                                data: data.map(d => d.totalRevenue),
+                                borderColor: '#2563eb',
+                                fill: false
+                            },
+                            {
+                                label: 'Premium intäkt',
+                                data: data.map(d => d.premiumRevenue),
+                                borderColor: '#16a34a',
+                                fill: false
+                            },
+                            {
+                                label: 'Plus intäkt',
+                                data: data.map(d => d.plusRevenue),
+                                borderColor: '#ea580c',
+                                fill: false
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: value => `${value.toLocaleString()} kr`
+                                }
+                            }
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `${context.dataset.label}: ${context.raw.toLocaleString()} kr`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            };
+
+            const data = calculateData();
+            React.useEffect(() => {
+                updateChart(data);
             }, [params]);
 
             const year1Total = data.slice(0, 12).reduce((sum, month) => sum + month.totalRevenue, 0);
             const year2Total = data.slice(12).reduce((sum, month) => sum + month.totalRevenue, 0);
 
             return (
-                <div className="container">
+                <div>
                     <div className="controls">
                         <div className="control-group">
-                            <label className="label">Målantal användare år 2</label>
+                            <label>Målantal användare år 2</label>
                             <input 
                                 type="number" 
                                 value={params.targetUsers}
@@ -146,7 +218,7 @@
                             />
                         </div>
                         <div className="control-group">
-                            <label className="label">Premium pris/månad</label>
+                            <label>Premium pris/månad</label>
                             <input 
                                 type="number" 
                                 value={params.premiumPrice}
@@ -154,7 +226,7 @@
                             />
                         </div>
                         <div className="control-group">
-                            <label className="label">Premium tillägg</label>
+                            <label>Premium tillägg</label>
                             <input 
                                 type="number" 
                                 value={params.premiumExtras}
@@ -162,61 +234,96 @@
                             />
                         </div>
                         <div className="control-group">
-                            <label className="label">Plus pris/månad</label>
+                            <label>Plus pris/månad</label>
                             <input 
                                 type="number" 
                                 value={params.plusPrice}
                                 onChange={(e) => setParams({...params, plusPrice: Number(e.target.value)})}
                             />
                         </div>
+                        <div className="control-group">
+                            <label>Premium % år 1</label>
+                            <input 
+                                type="number" 
+                                value={params.premiumPercentYear1}
+                                onChange={(e) => setParams({...params, premiumPercentYear1: Number(e.target.value)})}
+                            />
+                        </div>
+                        <div className="control-group">
+                            <label>Premium % år 2</label>
+                            <input 
+                                type="number" 
+                                value={params.premiumPercentYear2}
+                                onChange={(e) => setParams({...params, premiumPercentYear2: Number(e.target.value)})}
+                            />
+                        </div>
+                        <div className="control-group">
+                            <label>Plus % år 2</label>
+                            <input 
+                                type="number" 
+                                value={params.plusPercentYear2}
+                                onChange={(e) => setParams({...params, plusPercentYear2: Number(e.target.value)})}
+                            />
+                        </div>
                     </div>
 
                     <div className="chart-container">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={data}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="month" />
-                                <YAxis />
-                                <Tooltip formatter={(value) => `${value.toLocaleString()} kr`} />
-                                <Legend />
-                                <Line type="monotone" dataKey="totalRevenue" name="Total intäkt" stroke="#1a73e8" />
-                                <Line type="monotone" dataKey="premiumRevenue" name="Premium intäkt" stroke="#34a853" />
-                                <Line type="monotone" dataKey="plusRevenue" name="Plus intäkt" stroke="#fbbc04" />
-                            </LineChart>
-                        </ResponsiveContainer>
+                        <canvas id="revenueChart"></canvas>
                     </div>
 
-                    <div className="metrics">
-                        <div className="metric-card">
-                            <div className="metric-value">
-                                {year1Total.toLocaleString()} kr
-                            </div>
-                            <div className="metric-label">Total intäkt år 1</div>
+                    <div className="summary">
+                        <div className="summary-card">
+                            <div className="summary-value">{year1Total.toLocaleString()} kr</div>
+                            <div>Total intäkt år 1</div>
                         </div>
-                        <div className="metric-card">
-                            <div className="metric-value">
-                                {year2Total.toLocaleString()} kr
-                            </div>
-                            <div className="metric-label">Total intäkt år 2</div>
+                        <div className="summary-card">
+                            <div className="summary-value">{year2Total.toLocaleString()} kr</div>
+                            <div>Total intäkt år 2</div>
                         </div>
-                        <div className="metric-card">
-                            <div className="metric-value">
-                                {data[11]?.premiumUsers || 0}
-                            </div>
-                            <div className="metric-label">Premium användare år 1</div>
+                        <div className="summary-card">
+                            <div className="summary-value">{data[11].premiumUsers}</div>
+                            <div>Premium användare slutet år 1</div>
                         </div>
-                        <div className="metric-card">
-                            <div className="metric-value">
-                                {data[23]?.premiumUsers || 0}
-                            </div>
-                            <div className="metric-label">Premium användare år 2</div>
+                        <div className="summary-card">
+                            <div className="summary-value">{data[23].premiumUsers}</div>
+                            <div>Premium användare slutet år 2</div>
                         </div>
+                    </div>
+
+                    <div className="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Månad</th>
+                                    <th>Totala användare</th>
+                                    <th>Premium användare</th>
+                                    <th>Plus användare</th>
+                                    <th>Premium intäkt</th>
+                                    <th>Plus intäkt</th>
+                                    <th>Total intäkt</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {data.map((month, index) => (
+                                    <tr key={month.month} className={index === 11 || index === 23 ? 'highlight' : ''}>
+                                        <td>{month.month}</td>
+                                        <td>{month.users}</td>
+                                        <td>{month.premiumUsers}</td>
+                                        <td>{month.plusUsers}</td>
+                                        <td>{month.premiumRevenue.toLocaleString()} kr</td>
+                                        <td>{month.plusRevenue.toLocaleString()} kr</td>
+                                        <td>{month.totalRevenue.toLocaleString()} kr</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             );
         }
 
-        ReactDOM.render(<RevenueCalculator />, document.getElementById('root'));
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<RevenueCalculator />);
     </script>
 </body>
 </html>
