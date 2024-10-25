@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Revenue Calculator</title>
+    <meta charset="UTF-8">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.2/Recharts.js"></script>
+    <style>
+        body { margin: 0; padding: 0; }
+        .container {
+            width: 100vw;
+            height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+            font-family: 'Google Sans', Arial, sans-serif;
+        }
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #202124;
+        }
+        input {
+            padding: 8px;
+            border: 1px solid #dadce0;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .chart-container {
+            height: calc(100% - 280px);
+            min-height: 300px;
+        }
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .metric-card {
+            background-color: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #dadce0;
+        }
+        .metric-value {
+            font-size: 20px;
+            font-weight: 500;
+            color: #1a73e8;
+        }
+        .metric-label {
+            font-size: 12px;
+            color: #5f6368;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        // Samma React-komponenten som tidigare men med några Google Slides-specifika justeringar
+        const { useState, useEffect } = React;
+        const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } = Recharts;
+
+        function RevenueCalculator() {
+            const [params, setParams] = useState({
+                targetUsers: 500,
+                premiumPrice: 3000,
+                premiumExtras: 1000,
+                plusPrice: 500,
+                initialPremiumUsers: 2,
+                premiumGrowthPerMonth: 2
+            });
+
+            const [data, setData] = useState([]);
+
+            const calculateRevenue = () => {
+                const year1 = Array.from({ length: 12 }, (_, i) => {
+                    const users = Math.round(150 * ((i + 1) / 12));
+                    const premiumUsers = i < 5 ? 0 : Math.min(
+                        params.initialPremiumUsers + (i - 5) * params.premiumGrowthPerMonth, 
+                        12
+                    );
+                    const premiumRevenue = premiumUsers * (params.premiumPrice + params.premiumExtras);
+                    
+                    return {
+                        month: `M${i + 1}`,
+                        users,
+                        premiumUsers,
+                        premiumRevenue,
+                        plusRevenue: 0,
+                        totalRevenue: premiumRevenue
+                    };
+                });
+
+                const year2 = Array.from({ length: 12 }, (_, i) => {
+                    const users = Math.round(150 + ((params.targetUsers - 150) * (i + 1) / 12));
+                    const premiumUsers = Math.round(12 + ((params.targetUsers * 0.12 - 12) * (i + 1) / 12));
+                    const plusUsers = Math.round(users * 0.3);
+                    const premiumRevenue = premiumUsers * (params.premiumPrice + params.premiumExtras);
+                    const plusRevenue = plusUsers * params.plusPrice;
+
+                    return {
+                        month: `M${i + 13}`,
+                        users,
+                        premiumUsers,
+                        plusUsers,
+                        premiumRevenue,
+                        plusRevenue,
+                        totalRevenue: premiumRevenue + plusRevenue
+                    };
+                });
+
+                setData([...year1, ...year2]);
+            };
+
+            useEffect(() => {
+                calculateRevenue();
+            }, [params]);
+
+            const year1Total = data.slice(0, 12).reduce((sum, month) => sum + month.totalRevenue, 0);
+            const year2Total = data.slice(12).reduce((sum, month) => sum + month.totalRevenue, 0);
+
+            return (
+                <div className="container">
+                    <div className="controls">
+                        <div className="control-group">
+                            <label className="label">Målantal användare år 2</label>
+                            <input 
+                                type="number" 
+                                value={params.targetUsers}
+                                onChange={(e) => setParams({...params, targetUsers: Number(e.target.value)})}
+                            />
+                        </div>
+                        <div className="control-group">
+                            <label className="label">Premium pris/månad</label>
+                            <input 
+                                type="number" 
+                                value={params.premiumPrice}
+                                onChange={(e) => setParams({...params, premiumPrice: Number(e.target.value)})}
+                            />
+                        </div>
+                        <div className="control-group">
+                            <label className="label">Premium tillägg</label>
+                            <input 
+                                type="number" 
+                                value={params.premiumExtras}
+                                onChange={(e) => setParams({...params, premiumExtras: Number(e.target.value)})}
+                            />
+                        </div>
+                        <div className="control-group">
+                            <label className="label">Plus pris/månad</label>
+                            <input 
+                                type="number" 
+                                value={params.plusPrice}
+                                onChange={(e) => setParams({...params, plusPrice: Number(e.target.value)})}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="chart-container">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={data}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="month" />
+                                <YAxis />
+                                <Tooltip formatter={(value) => `${value.toLocaleString()} kr`} />
+                                <Legend />
+                                <Line type="monotone" dataKey="totalRevenue" name="Total intäkt" stroke="#1a73e8" />
+                                <Line type="monotone" dataKey="premiumRevenue" name="Premium intäkt" stroke="#34a853" />
+                                <Line type="monotone" dataKey="plusRevenue" name="Plus intäkt" stroke="#fbbc04" />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    </div>
+
+                    <div className="metrics">
+                        <div className="metric-card">
+                            <div className="metric-value">
+                                {year1Total.toLocaleString()} kr
+                            </div>
+                            <div className="metric-label">Total intäkt år 1</div>
+                        </div>
+                        <div className="metric-card">
+                            <div className="metric-value">
+                                {year2Total.toLocaleString()} kr
+                            </div>
+                            <div className="metric-label">Total intäkt år 2</div>
+                        </div>
+                        <div className="metric-card">
+                            <div className="metric-value">
+                                {data[11]?.premiumUsers || 0}
+                            </div>
+                            <div className="metric-label">Premium användare år 1</div>
+                        </div>
+                        <div className="metric-card">
+                            <div className="metric-value">
+                                {data[23]?.premiumUsers || 0}
+                            </div>
+                            <div className="metric-label">Premium användare år 2</div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<RevenueCalculator />, document.getElementById('root'));
+    </script>
+</body>
+</html>
